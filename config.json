@@ -1,0 +1,8 @@
+{
+  "bookingUrl": "https://citaprevia.ciencia.gob.es/qmaticwebbooking/#/",
+  "reservationOptionText": "Asistencia telefónica para la homologación y equivalencia de títulos universitarios extranjeros",
+  "whatsappApi": "https://api.callmebot.com/whatsapp.php",
+  "whatsappPhone": "+5491164541174",
+  "callmebotApikey": "4931403",
+  "checkInterval": 60000
+}
