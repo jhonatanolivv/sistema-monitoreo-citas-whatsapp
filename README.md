@@ -1,13 +1,16 @@
-# Sistema de Monitoreo de Citas - Reconocimiento de Firmas para Legalizaciones
+# Sistema de Monitoreo de Citas - Asistencia Telefónica para Homologación de Títulos
 
-Este sistema monitorea automáticamente la página de citas del Ministerio de Ciencia, Innovación y Universidades de España y te envía notificaciones por WhatsApp cuando encuentra citas disponibles.
+Este sistema monitorea automáticamente la página de citas del Ministerio de Ciencia, Innovación y Universidades de España y te envía notificaciones por WhatsApp cuando encuentra citas disponibles, agendándolas automáticamente con tus datos personales.
 
 ## 🎯 Funcionalidades
 
 - ✅ Monitoreo automático cada 60 segundos
-- ✅ Selección automática del servicio "Reconocimiento de Firmas para Legalizaciones"
-- ✅ Detección de fechas y horarios disponibles
-- ✅ Reserva automática de citas
+- ✅ Selección automática del servicio "Asistencia telefónica para la homologación y equivalencia de títulos universitarios extranjeros"
+- ✅ Detección de fechas disponibles (background color #3e4753)
+- ✅ Detección de horarios disponibles (background color #20a571)
+- ✅ Llenado automático del formulario con datos personales
+- ✅ Aceptación automática de términos de privacidad
+- ✅ Creación automática de citas
 - ✅ Notificaciones por WhatsApp usando CallMeBot API
 - ✅ Dashboard web para monitorear el estado del sistema
 - ✅ Logs detallados de todas las operaciones
@@ -62,24 +65,37 @@ El archivo `config.json` contiene:
 - `whatsappPhone`: Tu número de teléfono
 - `callmebotApikey`: Tu API key de CallMeBot
 - `checkInterval`: Intervalo entre verificaciones (en milisegundos)
+- `personalData`: Datos personales para el formulario:
+  - `nombre`: José Félix
+  - `apellido`: Morales
+  - `pasaporte`: XDF290594
+  - `fechaNacimiento`: 21/06/1995
+  - `correo`: josefelixmorales21@gmail.com
+  - `contacto`: +34 695 53 17 66
 
 ## 📱 Notificaciones WhatsApp
 
 El sistema te enviará notificaciones en los siguientes casos:
 
 1. **Inicio del sistema**: Confirmación de que el monitoreo ha comenzado
-2. **Cita encontrada y reservada**: Detalles completos de la cita reservada
+2. **Cita encontrada y agendada**: Detalles completos de la cita creada incluyendo:
+   - Fecha y hora de la cita
+   - Datos personales registrados
+   - Estado de confirmación
 3. **Errores**: Si ocurre algún problema durante el monitoreo
 
 ## 🔧 Funcionamiento
 
 1. El sistema abre la página de citas usando Puppeteer
-2. Selecciona automáticamente "Reconocimiento de Firmas para Legalizaciones"
-3. Busca fechas disponibles en el calendario
-4. Si encuentra una fecha disponible, selecciona el primer horario disponible
-5. Intenta reservar la cita automáticamente
-6. Te envía una notificación por WhatsApp con los detalles
-7. El sistema se detiene después de una reserva exitosa
+2. Selecciona automáticamente "Asistencia telefónica para la homologación y equivalencia de títulos universitarios extranjeros"
+3. Busca fechas disponibles en el calendario (background color #3e4753)
+4. Si encuentra una fecha disponible, busca horarios disponibles (background color #20a571)
+5. Selecciona el primer horario disponible
+6. Llena automáticamente el formulario con los datos personales configurados
+7. Acepta los términos de tratamiento de datos personales
+8. Hace clic en "CREAR CITA" para completar el agendamiento
+9. Te envía una notificación por WhatsApp con todos los detalles
+10. El sistema se detiene después de una reserva exitosa
 
 ## 📊 Monitoreo
 

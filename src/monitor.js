@@ -20,19 +20,23 @@ async function monitorAppointment() {
     await page.goto(config.bookingUrl, { waitUntil: 'networkidle0', timeout: 30000 });
     
     // Wait for the page to load completely
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(5000);
     
-    // Look for the "Reconocimiento de Firmas para Legalizaciones" option
-    logger.logInfo(`Looking for option "${config.reservationOptionText}"`);
+    // Step 1: Seleccionar sucursal (should be automatically selected)
+    logger.logInfo('Step 1: Sucursal should be automatically selected');
+    
+    // Step 2: Select the correct service option
+    logger.logInfo(`Step 2: Looking for service option "${config.reservationOptionText}"`);
     
     // Wait for the step2 section to be available
-    await page.waitForSelector('#step2', { timeout: 10000 });
+    await page.waitForSelector('#step2', { timeout: 15000 });
     
-    // Find and click the correct radio button using step2 ID
+    // Find and click the correct radio button for the service
     const optionFound = await page.evaluate((optionText) => {
       const step2Section = document.querySelector('#step2');
       if (!step2Section) return false;
       
+      // Look for labels containing the service text
       const labels = Array.from(step2Section.querySelectorAll('label'));
       const targetLabel = labels.find(label => 
         label.textContent.trim().includes(optionText)
@@ -52,202 +56,100 @@ async function monitorAppointment() {
     }, config.reservationOptionText);
     
     if (!optionFound) {
-      logger.logError('Could not find the reservation option');
+      logger.logError('Could not find the service option');
       return null;
     }
     
-    logger.logInfo('Option selected, waiting for calendar to load...');
-    await page.waitForTimeout(3000);
+    logger.logInfo('Service option selected, waiting for calendar to load...');
+    await page.waitForTimeout(5000);
+    
+    // Step 3: Look for available dates with specific background color #3e4753
+    logger.logInfo('Step 3: Looking for available dates in calendar...');
     
     // Wait for step3 (date selection) to become available
-    await page.waitForSelector('#step3', { timeout: 10000 });
+    await page.waitForSelector('#step3', { timeout: 15000 });
     
-    // Click on step3 to expand date selection if needed
-    await page.evaluate(() => {
-      const step3Section = document.querySelector('#step3');
-      if (step3Section) {
-        const step3Header = step3Section.querySelector('h3, h4, .panel-heading, .step-header');
-        if (step3Header) {
-          step3Header.click();
-        }
-      }
-    });
-    await page.waitForTimeout(3000);
-    
-    // Look for available dates in the calendar within step3
-    const availableAppointment = await page.evaluate(() => {
+    // Look for available dates with the specific background color
+    const availableDate = await page.evaluate(() => {
       const step3Section = document.querySelector('#step3');
       if (!step3Section) {
         return { available: false, reason: 'Step3 section not found' };
       }
       
-      // First, check if there's a "No hay citas disponibles" message
-      const noAppointmentsMessages = [
-        'no hay citas disponibles',
-        'no disponible',
-        'sin citas',
-        'no appointments available',
-        'no hay horarios',
-        'no hay fechas disponibles',
-        'sin disponibilidad'
-      ];
-      
-      const step3Text = step3Section.textContent.toLowerCase();
-      const hasNoAppointmentsMessage = noAppointmentsMessages.some(msg => 
-        step3Text.includes(msg)
-      );
-      
-      if (hasNoAppointmentsMessage) {
-        return { available: false, reason: 'No appointments message found in step3' };
-      }
-      
-      // Look for calendar table within step3
-      const calendarTable = step3Section.querySelector('table, .calendar, .date-picker');
-      if (!calendarTable) {
-        return { available: false, reason: 'Calendar table not found in step3' };
-      }
-      
-      // Look for ALL clickable date cells that are not disabled
-      const dateCells = Array.from(calendarTable.querySelectorAll('td, button, .v-btn')).filter(el => {
-        const text = el.textContent.trim();
-        const isNumber = /^\d{1,2}$/.test(text);
-        
-        if (!isNumber) return false;
-        
-        const dateNum = parseInt(text);
-        if (dateNum < 1 || dateNum > 31) return false;
-        
-        // Check if element is disabled (more comprehensive check)
-        if (el.disabled || 
-            el.classList.contains('disabled') || 
-            el.classList.contains('unavailable') ||
-            el.hasAttribute('disabled') ||
-            el.classList.contains('past') ||
-            el.classList.contains('v-btn--disabled') ||
-            el.getAttribute('aria-disabled') === 'true') {
-          return false;
-        }
-        
-        // Check if it's clickable (has click events or is a button)
+      // Look for date elements with background color #3e4753
+      const dateElements = Array.from(step3Section.querySelectorAll('*')).filter(el => {
         const computedStyle = window.getComputedStyle(el);
-        const isClickable = computedStyle.cursor === 'pointer' || 
-                           el.tagName === 'BUTTON' ||
-                           el.onclick !== null ||
-                           el.classList.contains('available') ||
-                           el.classList.contains('selectable') ||
-                           (el.classList.contains('v-btn') && !el.classList.contains('v-btn--disabled'));
-        
-        // Additional check for background color (available dates often have different styling)
         const bgColor = computedStyle.backgroundColor;
-        const color = computedStyle.color;
-        const hasAvailableStyling = !bgColor.includes('gray') && 
-                                   !bgColor.includes('rgb(211, 211, 211)') && // Light gray
-                                   !bgColor.includes('rgb(169, 169, 169)') && // Dark gray
-                                   !bgColor.includes('rgb(128, 128, 128)');   // Medium gray
         
-        // Check if the element has classes that indicate it's available
-        const hasAvailableClass = el.classList.contains('available') ||
-                                 el.classList.contains('selectable') ||
-                                 el.classList.contains('active') ||
-                                 (el.classList.contains('v-btn') && !el.classList.contains('v-btn--disabled'));
+        // Convert #3e4753 to rgb format: rgb(62, 71, 83)
+        const targetColor = 'rgb(62, 71, 83)';
         
-        return (isClickable || hasAvailableClass) && hasAvailableStyling;
+        // Check if background color matches the target color
+        if (bgColor === targetColor) {
+          const text = el.textContent.trim();
+          // Check if it contains a valid date number
+          if (/^\d{1,2}$/.test(text)) {
+            const dateNum = parseInt(text);
+            if (dateNum >= 1 && dateNum <= 31) {
+              return true;
+            }
+          }
+        }
+        return false;
       });
       
-      if (dateCells.length === 0) {
-        return { available: false, reason: 'No available date cells found in calendar' };
+      if (dateElements.length === 0) {
+        return { available: false, reason: 'No dates with background color #3e4753 found' };
       }
       
-      // Log all available dates for debugging
-      const allAvailableDates = dateCells.map(cell => ({
-        date: cell.textContent.trim(),
-        classes: cell.className,
-        tagName: cell.tagName
-      }));
-      
       // Click the first available date
-      const chosenDate = dateCells[0];
+      const chosenDate = dateElements[0];
       chosenDate.click();
-      
-      // Get the current month/year for better date formatting
-      const monthYearElement = step3Section.querySelector('.month, .year, .current-month');
-      const monthYear = monthYearElement ? monthYearElement.textContent.trim() : '';
       
       return { 
         available: true, 
         dateText: chosenDate.textContent.trim(),
-        monthYear: monthYear,
         element: chosenDate.tagName,
         className: chosenDate.className,
-        totalAvailableDates: dateCells.length,
-        allDates: allAvailableDates
+        totalAvailableDates: dateElements.length
       };
     });
     
-    if (!availableAppointment.available) {
-      logger.logInfo(`No available appointment dates found. Reason: ${availableAppointment.reason || 'Unknown'}`);
+    if (!availableDate.available) {
+      logger.logInfo(`No available dates found. Reason: ${availableDate.reason || 'Unknown'}`);
       return null;
     }
     
-    logger.logInfo(`Found ${availableAppointment.totalAvailableDates} available dates. Selected date: ${availableAppointment.dateText} ${availableAppointment.monthYear} (${availableAppointment.element}, class: ${availableAppointment.className})`);
+    logger.logInfo(`Found ${availableDate.totalAvailableDates} available dates. Selected date: ${availableDate.dateText}`);
     
     // Wait for time slots to load after selecting a date
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(5000);
     
-    // Look for available time slots within step3 after date selection
-    const appointmentDetails = await page.evaluate(() => {
-      const step3Section = document.querySelector('#step3');
-      if (!step3Section) {
-        return { available: false, reason: 'Step3 section not found for time selection' };
-      }
-      
-      // Check if there's a message saying no times are available
-      const noTimesMessages = [
-        'no hay horarios disponibles',
-        'sin horarios',
-        'no times available',
-        'no hay horas'
-      ];
-      
-      const step3Text = step3Section.textContent.toLowerCase();
-      const hasNoTimesMessage = noTimesMessages.some(msg => 
-        step3Text.includes(msg)
-      );
-      
-      if (hasNoTimesMessage) {
-        return { available: false, reason: 'No times available message found in step3' };
-      }
-      
-      // Look for time slot buttons within step3
-      const timeElements = Array.from(step3Section.querySelectorAll('button, .time-slot, .hour-button')).filter(el => {
-        const text = el.textContent.trim();
-        const isTimeFormat = /^\d{1,2}:\d{2}$/.test(text);
-        
-        if (!isTimeFormat) return false;
-        
-        // Check if element is disabled
-        if (el.disabled || 
-            el.classList.contains('disabled') || 
-            el.classList.contains('unavailable') ||
-            el.classList.contains('booked')) {
-          return false;
-        }
-        
-        // Check if it's available (green background or available class)
+    // Look for available time slots with color #20a571
+    logger.logInfo('Looking for available time slots...');
+    
+    const availableTime = await page.evaluate(() => {
+      // Look for time elements with background color #20a571 (green)
+      const timeElements = Array.from(document.querySelectorAll('*')).filter(el => {
         const computedStyle = window.getComputedStyle(el);
         const bgColor = computedStyle.backgroundColor;
-        const hasAvailableColor = bgColor.includes('green') || 
-                                 bgColor.includes('rgb(40, 167, 69)') ||
-                                 el.classList.contains('available') ||
-                                 el.classList.contains('free');
         
-        const isClickable = computedStyle.cursor === 'pointer' || el.tagName === 'BUTTON';
+        // Convert #20a571 to rgb format: rgb(32, 165, 113)
+        const targetColor = 'rgb(32, 165, 113)';
         
-        return hasAvailableColor && isClickable;
+        // Check if background color matches the target color
+        if (bgColor === targetColor) {
+          const text = el.textContent.trim();
+          // Check if it contains a valid time format (HH:MM)
+          if (/^\d{1,2}:\d{2}$/.test(text)) {
+            return true;
+          }
+        }
+        return false;
       });
       
       if (timeElements.length === 0) {
-        return { available: false, reason: 'No available time slots found in step3' };
+        return { available: false, reason: 'No time slots with background color #20a571 found' };
       }
       
       // Click the first available time slot
@@ -263,44 +165,161 @@ async function monitorAppointment() {
       };
     });
     
-    if (!appointmentDetails || !appointmentDetails.available) {
-      logger.logInfo(`No time slots available for the selected date. Reason: ${appointmentDetails?.reason || 'Unknown'}`);
+    if (!availableTime.available) {
+      logger.logInfo(`No time slots available. Reason: ${availableTime.reason || 'Unknown'}`);
       return null;
     }
     
-    logger.logInfo(`Found available time slot: ${appointmentDetails.time} (${appointmentDetails.totalSlotsFound} total slots available)`);
+    logger.logInfo(`Found available time slot: ${availableTime.time} (${availableTime.totalSlotsFound} total slots available)`);
     
-    // Wait a bit more to ensure the reservation is processed
+    // Wait for form to appear
+    await page.waitForTimeout(3000);
+    
+    // Fill the form with personal data
+    logger.logInfo('Filling form with personal data...');
+    
+    const formFilled = await page.evaluate((personalData) => {
+      try {
+        // Fill Nombre
+        const nombreField = document.querySelector('input[name*="nombre"], input[id*="nombre"], input[placeholder*="nombre"]');
+        if (nombreField) {
+          nombreField.value = personalData.nombre;
+          nombreField.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        
+        // Fill Apellido
+        const apellidoField = document.querySelector('input[name*="apellido"], input[id*="apellido"], input[placeholder*="apellido"]');
+        if (apellidoField) {
+          apellidoField.value = personalData.apellido;
+          apellidoField.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        
+        // Fill Pasaporte
+        const pasaporteField = document.querySelector('input[name*="pasaporte"], input[id*="pasaporte"], input[placeholder*="pasaporte"], input[name*="documento"], input[id*="documento"]');
+        if (pasaporteField) {
+          pasaporteField.value = personalData.pasaporte;
+          pasaporteField.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        
+        // Fill Fecha de Nacimiento
+        const fechaField = document.querySelector('input[name*="fecha"], input[id*="fecha"], input[type="date"], input[placeholder*="fecha"]');
+        if (fechaField) {
+          fechaField.value = personalData.fechaNacimiento;
+          fechaField.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        
+        // Fill Email
+        const emailFields = document.querySelectorAll('input[type="email"], input[name*="email"], input[name*="correo"], input[id*="email"], input[id*="correo"]');
+        emailFields.forEach(field => {
+          field.value = personalData.correo;
+          field.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        
+        // Fill Phone/Contact
+        const phoneFields = document.querySelectorAll('input[type="tel"], input[name*="telefono"], input[name*="contacto"], input[id*="telefono"], input[id*="contacto"], input[placeholder*="telefono"]');
+        phoneFields.forEach(field => {
+          field.value = personalData.contacto;
+          field.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        
+        return true;
+      } catch (error) {
+        console.error('Error filling form:', error);
+        return false;
+      }
+    }, config.personalData);
+    
+    if (formFilled) {
+      logger.logInfo('Form filled successfully');
+    } else {
+      logger.logError('Error filling form');
+    }
+    
+    // Wait a bit for form to process
     await page.waitForTimeout(2000);
     
-    // Check if reservation was actually successful by looking for confirmation
-    const reservationConfirmed = await page.evaluate(() => {
+    // Check and click the privacy checkbox
+    logger.logInfo('Looking for privacy checkbox...');
+    
+    const checkboxClicked = await page.evaluate(() => {
+      const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+      for (let checkbox of checkboxes) {
+        const label = document.querySelector(`label[for="${checkbox.id}"]`) || checkbox.closest('label');
+        if (label && label.textContent.includes('datos personales')) {
+          if (!checkbox.checked) {
+            checkbox.click();
+          }
+          return true;
+        }
+      }
+      return false;
+    });
+    
+    if (checkboxClicked) {
+      logger.logInfo('Privacy checkbox checked');
+    } else {
+      logger.logError('Could not find or check privacy checkbox');
+    }
+    
+    // Wait a bit before clicking the final button
+    await page.waitForTimeout(2000);
+    
+    // Click "CREAR CITA" button
+    logger.logInfo('Looking for CREAR CITA button...');
+    
+    const buttonClicked = await page.evaluate(() => {
+      const buttons = Array.from(document.querySelectorAll('button, input[type="submit"]'));
+      const crearCitaButton = buttons.find(btn => 
+        btn.textContent.trim().toUpperCase().includes('CREAR CITA') ||
+        btn.value && btn.value.toUpperCase().includes('CREAR CITA')
+      );
+      
+      if (crearCitaButton) {
+        crearCitaButton.click();
+        return true;
+      }
+      return false;
+    });
+    
+    if (buttonClicked) {
+      logger.logInfo('CREAR CITA button clicked');
+    } else {
+      logger.logError('Could not find CREAR CITA button');
+    }
+    
+    // Wait for confirmation
+    await page.waitForTimeout(5000);
+    
+    // Check if appointment was successfully created
+    const appointmentCreated = await page.evaluate(() => {
       const confirmationMessages = [
+        'cita creada',
+        'cita confirmada',
         'reserva confirmada',
-        'cita reservada',
+        'appointment created',
         'appointment confirmed',
-        'reservado',
-        'confirmado'
+        'éxito',
+        'success'
       ];
       
       const bodyText = document.body.textContent.toLowerCase();
       return confirmationMessages.some(msg => bodyText.includes(msg));
     });
     
-    const fullDate = `${availableAppointment.dateText} ${availableAppointment.monthYear}`.trim();
+    const fullDate = availableDate.dateText;
     
-    if (reservationConfirmed) {
-      logger.logInfo(`Appointment successfully reserved: Date: ${fullDate}, Time: ${appointmentDetails.time}`);
+    if (appointmentCreated) {
+      logger.logInfo(`Appointment successfully created: Date: ${fullDate}, Time: ${availableTime.time}`);
       return {
         date: fullDate,
-        time: appointmentDetails.time,
+        time: availableTime.time,
         confirmed: true
       };
     } else {
-      logger.logInfo('Appointment selection completed but confirmation not detected - this may be normal for this booking system');
+      logger.logInfo('Appointment process completed - confirmation status unclear');
       return {
         date: fullDate,
-        time: appointmentDetails.time,
+        time: availableTime.time,
         confirmed: false
       };
     }

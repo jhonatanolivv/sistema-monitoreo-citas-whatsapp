@@ -33,7 +33,7 @@ async function checkAppointments() {
         
         appointmentFound = true;
         const confirmationStatus = appointment.confirmed ? '✅ CONFIRMADA' : '⏳ PENDIENTE DE CONFIRMACIÓN';
-        const message = `🎉 ¡CITA ENCONTRADA! 🎉\n\n📅 Fecha: ${appointment.date}\n⏰ Hora: ${appointment.time}\n📋 Estado: ${confirmationStatus}\n\n📍 Servicio: Reconocimiento de Firmas para Legalizaciones\n🏢 Ministerio de Ciencia, Innovación y Universidades\n\n${appointment.confirmed ? '✅ Tu cita ha sido reservada automáticamente.' : '⚠️ Por favor verifica la reserva en el sitio web.'}`;
+        const message = `🎉 ¡CITA ENCONTRADA Y AGENDADA! 🎉\n\n📅 Fecha: ${appointment.date}\n⏰ Hora: ${appointment.time}\n📋 Estado: ${confirmationStatus}\n\n👤 Datos registrados:\n• Nombre: ${config.personalData.nombre} ${config.personalData.apellido}\n• Pasaporte: ${config.personalData.pasaporte}\n• Email: ${config.personalData.correo}\n• Teléfono: ${config.personalData.contacto}\n\n📍 Servicio: Asistencia telefónica para la homologación y equivalencia de títulos universitarios extranjeros\n🏢 Ministerio de Ciencia, Innovación y Universidades\n\n${appointment.confirmed ? '✅ Tu cita ha sido creada automáticamente con tus datos.' : '⚠️ Por favor verifica la reserva en el sitio web.'}`;
         
         await sendWhatsAppNotification(message);
         logger.logInfo('SUCCESS: Appointment found and notification sent!');
@@ -85,10 +85,11 @@ logger.logInfo(`Target URL: ${config.bookingUrl}`);
 logger.logInfo(`Service: ${config.reservationOptionText}`);
 logger.logInfo(`Check interval: ${config.checkInterval / 1000} seconds`);
 logger.logInfo(`WhatsApp notifications: ${config.whatsappPhone}`);
+logger.logInfo(`Personal Data: ${config.personalData.nombre} ${config.personalData.apellido}`);
 logger.logInfo('='.repeat(60));
 
 // Send startup notification
-sendWhatsAppNotification('🚀 Sistema de monitoreo de citas iniciado!\n\n📋 Servicio: Reconocimiento de Firmas para Legalizaciones\n⏱️ Verificando cada minuto\n\nTe notificaré cuando encuentre una cita disponible.').catch(err => {
+sendWhatsAppNotification('🚀 Sistema de monitoreo de citas iniciado!\n\n📋 Servicio: Asistencia telefónica para la homologación y equivalencia de títulos universitarios extranjeros\n⏱️ Verificando cada minuto\n\nTe notificaré cuando encuentre una cita disponible y la agendaré automáticamente.').catch(err => {
   logger.logError(`Failed to send startup notification: ${err.message}`);
 });
 

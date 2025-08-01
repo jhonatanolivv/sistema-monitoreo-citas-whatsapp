@@ -4,5 +4,13 @@
   "whatsappApi": "https://api.callmebot.com/whatsapp.php",
   "whatsappPhone": "+5491164541174",
   "callmebotApikey": "4931403",
-  "checkInterval": 60000
+  "checkInterval": 60000,
+  "personalData": {
+    "nombre": "José Félix",
+    "apellido": "Morales",
+    "pasaporte": "XDF290594",
+    "fechaNacimiento": "21/06/1995",
+    "correo": "josefelixmorales21@gmail.com",
+    "contacto": "+34 695 53 17 66"
+  }
 }
