@@ -1,5 +1,5 @@
 // src/index.js
-const { monitorAppointment } = require('./monitor-improved');
+const { monitorAppointment } = require('./monitor-final');
 const { sendWhatsAppNotification } = require('./notifier');
 const config = require('../config.json');
 const logger = require('./logger');
